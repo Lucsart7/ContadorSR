@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contador SR - Painel de Contagem Regressiva</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background: radial-gradient(circle at top left, #0f172a, #020617);
+            color: #f8fafc;
+        }
+        .glass-card {
+            background: rgba(15, 23, 42, 0.65);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .glass-modal {
+            background: rgba(2, 6, 23, 0.85);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+        }
+        .glow-effect {
+            box-shadow: 0 0 25px -5px rgba(59, 130, 246, 0.15);
+        }
+        .glow-effect:hover {
+            box-shadow: 0 0 35px 0px rgba(59, 130, 246, 0.3);
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #020617;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #334155;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between selection:bg-blue-500 selection:text-white">
+
+    <!-- Modal de Configuração Inicial (Primeira Visita) -->
+    <div id="initial-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 glass-modal transition-opacity duration-300">
+        <div class="glass-card max-w-md w-full p-8 rounded-3xl shadow-2xl border border-slate-700/50 space-y-6">
+            <div class="text-center space-y-2">
+                <div class="inline-flex p-3 rounded-2xl bg-blue-500/10 text-blue-400 mb-2">
+                    <i data-lucide="clock" class="w-8 h-8"></i>
+                </div>
+                <h2 class="text-2xl font-bold tracking-tight text-white">Bem-vindo ao Contador SR</h2>
+                <p class="text-slate-400 text-sm">Configure seus dados para inicializar o cálculo preciso dos contadores e eclipses na sua região.</p>
+            </div>
+
+            <form id="initial-form" onsubmit="handleInitialSetup(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">Sua Data de Nascimento</label>
+                    <input type="date" id="init-dob" required class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500 transition-colors">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">Sua Região / Fuso Horário</label>
+                    <select id="init-timezone" required class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500 transition-colors">
+                        <option value="America/Sao_Paulo">Brasil - São Paulo / Brasília (UTC-3)</option>
+                        <option value="America/Noronha">Brasil - Fernando de Noronha (UTC-2)</option>
+                        <option value="America/Manaus">Brasil - Manaus (UTC-4)</option>
+                        <option value="America/Rio_Branco">Brasil - Rio Branco (UTC-5)</option>
+                        <option value="Europe/Lisbon">Portugal - Lisboa (UTC+0 / UTC+1)</option>
+                        <option value="America/New_York">EUA - Nova York (UTC-5 / UTC-4)</option>
+                        <option value="Europe/London">Reino Unido - Londres (UTC+0 / UTC+1)</option>
+                        <option value="Europe/Paris">Europa - Paris / Berlim (UTC+1 / UTC+2)</option>
+                        <option value="Asia/Tokyo">Japão - Tóquio (UTC+9)</option>
+                        <option value="UTC">Tempo Universal Coordenado (UTC)</option>
+                    </select>
+                </div>
+
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3.5 rounded-xl shadow-lg shadow-blue-600/30 transition-all duration-200">
+                    Iniciar Contadores
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Cabeçalho Principal -->
+    <header class="border-b border-slate-800/80 sticky top-0 bg-slate-950/80 backdrop-blur-md z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <div class="p-2.5 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                    <i data-lucide="hourglass" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold text-white tracking-wide flex items-center gap-2">
+                        Contador SR
+                        <span class="text-xs px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-mono">v2.5</span>
+                    </h1>
+                    <p class="text-xs text-slate-400" id="current-timezone-display">Região: Carregando...</p>
+                </div>
+            </div>
+
+            <!-- Filtros & Pesquisa -->
+            <div class="flex items-center gap-3 w-full sm:w-auto">
+                <div class="relative flex-1 sm:w-64">
+                    <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                    <input type="text" id="search-input" oninput="renderCards()" placeholder="Buscar data..." class="w-full bg-slate-900 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors">
+                </div>
+                <select id="category-filter" onchange="renderCards()" class="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors">
+                    <option value="all">Todas Categorias</option>
+                    <option value="curto">Acurados (Min/Hora/Dia)</option>
+                    <option value="festas">Datas Festivas</option>
+                    <option value="pessoal">Aniversário Pessoal</option>
+                    <option value="astronomia">Eclipses / Astronomia</option>
+                    <option value="longo">Eras & Décadas</option>
+                </select>
+                <button onclick="openSettings()" title="Configurações" class="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800 transition-colors">
+                    <i data-lucide="settings" class="w-5 h-5"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Conteúdo Principal / Grid de Contadores -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full">
+        <div id="cards-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Cards gerados dinamicamente via JS -->
+        </div>
+    </main>
+
+    <!-- Rodapé -->
+    <footer class="border-t border-slate-800/80 bg-slate-950/40 py-6">
+        <div class="max-w-7xl mx-auto px-4 text-center text-xs text-slate-500 space-y-1">
+            <p>Contador SR &copy; 2026. Todos os direitos reservados.</p>
+            <p>Sincronizado dinamicamente em tempo real com o fuso horário da sua região.</p>
+        </div>
+    </footer>
+
+    <!-- Script Principal da Aplicação -->
+    <script>
+        // Dados fixos e dinâmicos dos Eclipses
+        const ECLIPSE_DATA = {
+            "America/Sao_Paulo": {
+                solar: { name: "Próximo Eclipse Solar (América do Sul)", date: "2027-02-06T13:00:00-03:00" },
+                lunar: { name: "Próximo Eclipse Lunar (Total)", date: "2028-12-31T15:00:00-03:00" }
+            },
+            "America/Noronha": {
+                solar: { name: "Próximo Eclipse Solar", date: "2027-02-06T14:00:00-02:00" },
+                lunar: { name: "Próximo Eclipse Lunar", date: "2028-12-31T16:00:00-02:00" }
+            },
+            "America/Manaus": {
+                solar: { name: "Próximo Eclipse Solar", date: "2027-02-06T12:00:00-04:00" },
+                lunar: { name: "Próximo Eclipse Lunar", date: "2028-12-31T14:00:00-04:00" }
+            },
+            "America/Rio_Branco": {
+                solar: { name: "Próximo Eclipse Solar", date: "2027-02-06T11:00:00-05:00" },
+                lunar: { name: "Próximo Eclipse Lunar", date: "2028-12-31T13:00:00-05:00" }
+            },
+            "DEFAULT": {
+                solar: { name: "Próximo Eclipse Solar Global", date: "2027-08-02T10:00:00Z" },
+                lunar: { name: "Próximo Eclipse Lunar Parcial", date: "2027-01-12T00:00:00Z" }
+            }
+        };
+
+        // Estado Global da Aplicação
+        let userConfig = {
+            dob: localStorage.getItem('cs_dob') || '',
+            timezone: localStorage.getItem('cs_tz') || ''
+        };
+
+        // Função de Inicialização
+        window.addEventListener('DOMContentLoaded', () => {
+            if (!userConfig.dob || !userConfig.timezone) {
+                document.getElementById('initial-modal').classList.remove('hidden');
+                // Detectar fuso horário do sistema se disponível
+                try {
+                    const systemTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                    const select = document.getElementById('init-timezone');
+                    if ([...select.options].some(o => o.value === systemTz)) {
+                        select.value = systemTz;
+                    }
+                } catch(e) {}
+            } else {
+                document.getElementById('initial-modal').classList.add('hidden');
+                initDashboard();
+            }
+            lucide.createIcons();
+        });
+
+        function handleInitialSetup(e) {
+            e.preventDefault();
+            const dob = document.getElementById('init-dob').value;
+            const tz = document.getElementById('init-timezone').value;
+
+            if (!dob || !tz) return;
+
+            userConfig.dob = dob;
+            userConfig.timezone = tz;
+
+            localStorage.setItem('cs_dob', dob);
+            localStorage.setItem('cs_tz', tz);
+
+            document.getElementById('initial-modal').classList.add('hidden');
+            initDashboard();
+        }
+
+        function openSettings() {
+            document.getElementById('init-dob').value = userConfig.dob;
+            document.getElementById('init-timezone').value = userConfig.timezone;
+            document.getElementById('initial-modal').classList.remove('hidden');
+        }
+
+        function initDashboard() {
+            document.getElementById('current-timezone-display').textContent = `Região: ${userConfig.timezone}`;
+            renderCards();
+            // Loop Principal de Atualização do Tempo (1 segundo)
+            if (window.timerInterval) clearInterval(window.timerInterval);
+            window.timerInterval = setInterval(updateAllCountdowns, 1000);
+            updateAllCountdowns();
+        }
+
+        // Cálculos de Próximas Datas Móveis/Fixas
+        function getNextOccurrence(month, day) {
+            const now = new Date();
+            let targetYear = now.getFullYear();
+            let target = new Date(targetYear, month - 1, day, 0, 0, 0);
+            if (now > target) {
+                target = new Date(targetYear + 1, month - 1, day, 0, 0, 0);
+            }
+            return target;
+        }
+
+        function getNextBirthday(dobString) {
+            if (!dobString) return new Date();
+            const [year, month, day] = dobString.split('-').map(Number);
+            const now = new Date();
+            let targetYear = now.getFullYear();
+            let target = new Date(targetYear, month - 1, day, 0, 0, 0);
+            if (now > target) {
+                target = new Date(targetYear + 1, month - 1, day, 0, 0, 0);
+            }
+            return target;
+        }
+
+        function getEasterDate(year) {
+            // Algoritmo de Butcher-Meeus para cálculo preciso da Páscoa
+            const a = year % 19;
+            const b = Math.floor(year / 100);
+            const c = year % 100;
+            const d = Math.floor(b / 4);
+            const e = b % 4;
+            const f = Math.floor((b + 8) / 25);
+            const g = Math.floor((b - f + 1) / 3);
+            const h = (19 * a + b - d - g + 15) % 30;
+            const i = Math.floor(c / 4);
+            const k = c % 4;
+            const l = (32 + 2 * e + 2 * i - h - k) % 7;
+            const m = Math.floor((a + 11 * h + 22 * l) / 451);
+            const month = Math.floor((h + l - 7 * m + 114) / 31);
+            const day = ((h + l - 7 * m + 114) % 31) + 1;
+            return new Date(year, month - 1, day, 0, 0, 0);
+        }
+
+        function getNextEaster() {
+            const now = new Date();
+            let easter = getEasterDate(now.getFullYear());
+            if (now > easter) {
+                easter = getEasterDate(now.getFullYear() + 1);
+            }
+            return easter;
+        }
+
+        function getNextMinute() {
+            const now = new Date();
+            return new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), now.getMinutes() + 1, 0);
+        }
+
+        function getNextHour() {
+            const now = new Date();
+            return new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours() + 1, 0, 0);
+        }
+
+        function getNextDay() {
+            const now = new Date();
+            return new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0);
+        }
+
+        function getNextDecade() {
+            const now = new Date();
+            const currentYear = now.getFullYear();
+            const nextDecadeYear = Math.ceil((currentYear + 1) / 10) * 10;
+            return new Date(nextDecadeYear, 0, 1, 0, 0, 0);
+        }
+
+        function getNextMillennium() {
+            const now = new Date();
+            const currentYear = now.getFullYear();
+            const nextMillenniumYear = Math.ceil((currentYear + 1) / 1000) * 1000;
+            return new Date(nextMillenniumYear, 0, 1, 0, 0, 0);
+        }
+
+        // Definição da lista de Contadores do Sistema
+        function getTargets() {
+            const tzEclipses = ECLIPSE_DATA[userConfig.timezone] || ECLIPSE_DATA["DEFAULT"];
+
+            return [
+                { id: 'minute', title: 'Próximo Minuto', category: 'curto', icon: 'timer', getTarget: getNextMinute },
+                { id: 'hour', title: 'Próxima Hora', category: 'curto', icon: 'clock', getTarget: getNextHour },
+                { id: 'day', title: 'Próximo Dia (Meia-noite)', category: 'curto', icon: 'sun', getTarget: getNextDay },
+                { id: 'birthday', title: 'Seu Aniversário', category: 'pessoal', icon: 'cake', getTarget: () => getNextBirthday(userConfig.dob) },
+                { id: 'halloween', title: 'Halloween (Dia das Bruxas)', category: 'festas', icon: 'ghost', getTarget: () => getNextOccurrence(10, 31) },
+                { id: 'christmas', title: 'Natal', category: 'festas', icon: 'gift', getTarget: () => getNextOccurrence(12, 25) },
+                { id: 'newyear', title: 'Ano Novo', category: 'festas', icon: 'sparkles', getTarget: () => getNextOccurrence(1, 1) },
+                { id: 'easter', title: 'Páscoa', category: 'festas', icon: 'egg', getTarget: getNextEaster },
+                { id: 'solar_eclipse', title: tzEclipses.solar.name, category: 'astronomia', icon: 'sun-dim', getTarget: () => new Date(tzEclipses.solar.date) },
+                { id: 'lunar_eclipse', title: tzEclipses.lunar.name, category: 'astronomia', icon: 'moon', getTarget: () => new Date(tzEclipses.lunar.date) },
+                { id: 'decade', title: 'Próxima Década', category: 'longo', icon: 'milestone', getTarget: getNextDecade },
+                { id: 'millennium', title: 'Próximo Milênio', category: 'longo', icon: 'globe', getTarget: getNextMillennium }
+            ];
+        }
+
+        // Renderização dos Cards na Interface
+        function renderCards() {
+            const grid = document.getElementById('cards-grid');
+            const search = document.getElementById('search-input').value.toLowerCase();
+            const category = document.getElementById('category-filter').value;
+
+            const targets = getTargets();
+            const filtered = targets.filter(t => {
+                const matchesSearch = t.title.toLowerCase().includes(search);
+                const matchesCategory = category === 'all' || t.category === category;
+                return matchesSearch && matchesCategory;
+            });
+
+            grid.innerHTML = filtered.map(item => `
+                <div class="glass-card glow-effect rounded-2xl p-6 transition-all duration-300 flex flex-col justify-between border border-slate-800/80">
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <span class="text-xs font-semibold uppercase tracking-wider text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2.5 py-1 rounded-lg">
+                                ${item.category}
+                            </span>
+                            <div class="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300">
+                                <i data-lucide="${item.icon}" class="w-5 h-5"></i>
+                            </div>
+                        </div>
+                        <h3 class="text-lg font-bold text-white mb-1">${item.title}</h3>
+                        <p id="target-date-${item.id}" class="text-xs text-slate-400 mb-6 font-mono">Carregando data...</p>
+                    </div>
+
+                    <!-- Contador Detalhado em Tempo Real -->
+                    <div id="counter-${item.id}" class="grid grid-cols-5 gap-1.5 text-center bg-slate-950/60 p-3 rounded-xl border border-slate-900/80">
+                        <div class="flex flex-col">
+                            <span class="text-base font-bold text-white font-mono leading-none" id="${item.id}-y">0</span>
+                            <span class="text-[9px] text-slate-500 uppercase mt-1">Anos</span>
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="text-base font-bold text-white font-mono leading-none" id="${item.id}-d">0</span>
+                            <span class="text-[9px] text-slate-500 uppercase mt-1">Dias</span>
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="text-base font-bold text-white font-mono leading-none" id="${item.id}-h">0</span>
+                            <span class="text-[9px] text-slate-500 uppercase mt-1">Horas</span>
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="text-base font-bold text-white font-mono leading-none" id="${item.id}-m">0</span>
+                            <span class="text-[9px] text-slate-500 uppercase mt-1">Min</span>
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="text-base font-bold text-blue-400 font-mono leading-none" id="${item.id}-s">0</span>
+                            <span class="text-[9px] text-blue-500/80 uppercase mt-1">Seg</span>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+            lucide.createIcons();
+            updateAllCountdowns();
+        }
+
+        // Algoritmo de Cálculo Preciso da Diferença de Tempo
+        function updateAllCountdowns() {
+            const now = new Date();
+            const targets = getTargets();
+
+            targets.forEach(item => {
+                const targetDate = item.getTarget();
+                const targetDisplay = document.getElementById(`target-date-${item.id}`);
+                
+                if (targetDisplay) {
+                    targetDisplay.textContent = targetDate.toLocaleString('pt-BR', { 
+                        dateStyle: 'medium', 
+                        timeStyle: 'short' 
+                    });
+                }
+
+                let diff = targetDate - now;
+                if (diff < 0) diff = 0;
+
+                // Decomposição exata de Anos, Dias, Horas, Minutos e Segundos
+                let seconds = Math.floor((diff / 1000) % 60);
+                let minutes = Math.floor((diff / 1000 / 60) % 60);
+                let hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+                
+                let totalDays = Math.floor(diff / (1000 * 60 * 60 * 24));
+                let years = Math.floor(totalDays / 365.25);
+                let days = Math.floor(totalDays % 365.25);
+
+                const elY = document.getElementById(`${item.id}-y`);
+                const elD = document.getElementById(`${item.id}-d`);
+                const elH = document.getElementById(`${item.id}-h`);
+                const elM = document.getElementById(`${item.id}-m`);
+                const elS = document.getElementById(`${item.id}-s`);
+
+                if (elY) elY.textContent = years;
+                if (elD) elD.textContent = days;
+                if (elH) elH.textContent = String(hours).padStart(2, '0');
+                if (elM) elM.textContent = String(minutes).padStart(2, '0');
+                if (elS) elS.textContent = String(seconds).padStart(2, '0');
+            });
+        }
+    </script>
+</body>
+</html>
